@@ -1,0 +1,13 @@
+{
+  "name": "webman-tech/enqueue",
+  "type": "library",
+  "license": "MIT",
+  "description": "Webman plugin webman-tech/enqueue",
+  "require": {
+  },
+  "autoload": {
+    "psr-4": {
+      "WebmanTech\\Enqueue\\": "src"
+    }
+  }
+}
