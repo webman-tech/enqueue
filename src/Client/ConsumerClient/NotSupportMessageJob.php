@@ -13,11 +13,11 @@ class NotSupportMessageJob extends BaseConsumerJob
     public function handle(Message $message)
     {
         $this->log(
-            '[NotSupportMessage]: ' . json_encode([
+            '[NotSupportMessage]: ' . json_encode(array_filter([
                 'body' => $message->getBody(),
                 'headers' => $message->getHeaders(),
                 'properties' => $message->getProperties(),
-            ], JSON_UNESCAPED_UNICODE)
+            ]), JSON_UNESCAPED_UNICODE)
         );
 
         return true;

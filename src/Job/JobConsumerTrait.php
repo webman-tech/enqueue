@@ -19,6 +19,20 @@ trait JobConsumerTrait
      * @var int
      */
     protected int $maxMemoryUse = -1;
+    /**
+     * 最大重试次数
+     * 为 null 时以全局配置为准
+     * 重试不占用首次执行次数
+     * 此配置仅针对 producer 时生效，仅消费模式下该值无效
+     * @var int|null
+     */
+    protected ?int $retry = null;
+    /**
+     * 重试延迟，单位秒
+     * 为 null 时以全局配置为准
+     * @var float|null
+     */
+    protected ?float $retryDelay = null;
 
     /**
      * @inheritDoc
@@ -40,6 +54,22 @@ trait JobConsumerTrait
             return null;
         }
         return $this->maxMemoryUse;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getDefaultRetry(): ?int
+    {
+        return $this->retry;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getDefaultRetryDelay(): ?float
+    {
+        return $this->retryDelay;
     }
 
     /**

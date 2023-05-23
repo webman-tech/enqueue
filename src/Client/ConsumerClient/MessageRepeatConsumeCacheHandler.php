@@ -45,11 +45,11 @@ class MessageRepeatConsumeCacheHandler implements MessageRepeatConsumeInterface
     }
 
     /**
-     * @param int $messageId
+     * @param string $key
      * @return string
      */
-    protected function getCacheKey(int $messageId): string
+    protected function getCacheKey(string $key): string
     {
-        return $this->cachePrefix . $messageId;
+        return $this->cachePrefix . $key;
     }
 }

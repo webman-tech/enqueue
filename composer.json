@@ -5,6 +5,7 @@
   "description": "Webman plugin webman-tech/enqueue",
   "require": {
     "php": ">=7.4",
+    "ext-json": "*",
     "enqueue/enqueue": "^0.10.18",
     "illuminate/events": ">=8.0"
   },

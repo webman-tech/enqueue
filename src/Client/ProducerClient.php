@@ -18,6 +18,7 @@ use WebmanTech\Enqueue\Enums\MessagePropertyEnum;
 use WebmanTech\Enqueue\Events\ProducerAbilityNotSupportTriggerEvent;
 use WebmanTech\Enqueue\Events\ProducerSendAfterEvent;
 use WebmanTech\Enqueue\Events\ProducerSendBeforeEvent;
+use WebmanTech\Enqueue\Job\JobConsumerInterface;
 use WebmanTech\Enqueue\Job\JobProducerInterface;
 
 class ProducerClient extends BaseClient
@@ -111,8 +112,7 @@ class ProducerClient extends BaseClient
     {
         $producer = $this->context->createProducer();
 
-        $message = $this->createMessage($message);
-        $this->configMessage($producer, $message);
+        $message = $this->createMessage($producer, $message);
 
         $this->events->dispatch(new ProducerSendBeforeEvent($producer, $message));
 
@@ -123,32 +123,38 @@ class ProducerClient extends BaseClient
 
     /**
      * 创建消息
+     * @param Producer $producer
      * @param string|Message|JobProducerInterface $message
      * @return Message
      */
-    protected function createMessage($message): Message
+    protected function createMessage(Producer $producer, $message): Message
     {
+        $isConsumerJob = $message instanceof JobConsumerInterface;
         if ($message instanceof JobProducerInterface) {
             $message->setProducerContext($this->context);
             $message = $message->getMessageForProducer();
         }
-        if ($message instanceof Message) {
-            return $message;
-        }
         if (is_string($message)) {
-            return $this->context->createMessage($message);
+            $message = $this->context->createMessage($message);
         }
-        // 不对 array 等类型做支持，因为后续可能存在与其他系统的对接，序列化或json化php的数组将导致前后不一致，因此如果需要，请手动转成json
-        throw new InvalidArgumentException('message only support string type');
+        if (!$message instanceof Message) {
+            // 不对 array 等类型做支持，因为后续可能存在与其他系统的对接，序列化或json化php的数组将导致前后不一致，因此如果需要，请手动转成json
+            throw new InvalidArgumentException('message must be string or instance of ' . Message::class . ' or ' . JobProducerInterface::class . ' or string');
+        }
+        $this->configMessageProducerProperties($producer, $message);
+        if ($isConsumerJob) {
+            $this->configMessageConsumerProperties($message);
+        }
+        return $message;
     }
 
     /**
-     * 配置消息
+     * 配置消息的生产相关的属性
      * @param Producer $producer
      * @param Message $message
      * @return void
      */
-    protected function configMessage(Producer $producer, Message $message)
+    protected function configMessageProducerProperties(Producer $producer, Message $message)
     {
         // delay
         $delay = $this->delay ?? $message->getProperty(MessagePropertyEnum::DELAY);
@@ -185,7 +191,15 @@ class ProducerClient extends BaseClient
                 $this->events->dispatch(new ProducerAbilityNotSupportTriggerEvent($producer, $e));
             }
         }
+    }
 
+    /**
+     * 配置消息消费相关的属性
+     * @param Message $message
+     * @return void
+     */
+    protected function configMessageConsumerProperties(Message $message)
+    {
         // retry
         $retry = $this->retry ?? $message->getProperty(MessagePropertyEnum::RETRY) ?? $this->config['default_retry'];
         if ($retry !== null && $retry > 0) {

@@ -19,6 +19,9 @@ trait MessageRepeatConsumeSupport
     {
         if ($handler = $this->getMessageRepeatConsumerHandler()) {
             $key = $this->getMessageRepeatConsumerKey($message);
+            if ($key === null) {
+                return;
+            }
             if ($handler->isConsumed($key)) {
                 throw new MessageRepeatConsumeException($message);
             }
@@ -58,9 +61,9 @@ trait MessageRepeatConsumeSupport
     /**
      * 获取重复消费记录的 key
      * @param Message $message
-     * @return string
+     * @return string|null 返回 null 表示不判断重复
      */
-    private function getMessageRepeatConsumerKey(Message $message): string
+    private function getMessageRepeatConsumerKey(Message $message): ?string
     {
         $keyHandler = $this->config['message_repeat_consume_key'] ?? null;
         if (!$keyHandler) {

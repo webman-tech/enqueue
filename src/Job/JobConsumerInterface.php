@@ -36,4 +36,18 @@ interface JobConsumerInterface extends JobConsumeRetryInterface, JobConsumeFaile
      * @return int|null
      */
     public function getMaxMemoryUse(): ?int;
+
+    /**
+     * 该消息默认的重试次数
+     * 实际执行次数=初次执行+重试次数
+     * @return int 大于0为有效值，小于0或null表示使用全局默认值，等于0表示不重试
+     */
+    public function getDefaultRetry(): ?int;
+
+    /**
+     * 重试延迟，单位秒
+     * 为 null 时以全局配置为准
+     * @return float|null
+     */
+    public function getDefaultRetryDelay(): ?float;
 }
