@@ -33,7 +33,7 @@ class {{name}} extends BaseJob
     public function handle(Message $message)
     {
         $data = json_decode($message->getBody(), true);
-        echo $data['param1'] . PHP_EOL;
+        $this->log($data['param1']);
 
         return true;
     }

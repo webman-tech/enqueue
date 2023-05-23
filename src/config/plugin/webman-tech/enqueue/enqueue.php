@@ -32,7 +32,7 @@ return [
         ],
         'file' => [
             'connection' => fn() => new \Enqueue\Fs\FsConnectionFactory([
-                'path' => run_path() . '/enqueue'
+                'path' => runtime_path() . '/enqueue'
             ]),
             'destination' => fn(\Enqueue\Fs\FsContext $context, array $config) => $context->createQueue($config['queue'] ?? 'queue'),
         ],

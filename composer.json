@@ -13,6 +13,7 @@
     "enqueue/fs": "^0.10.18",
     "enqueue/amqp-bunny": "^0.10.18",
     "enqueue/redis": "^0.10.18",
+    "monolog/monolog": ">=2.0",
     "symfony/console": ">=5.0"
   },
   "autoload": {

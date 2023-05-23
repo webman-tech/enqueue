@@ -2,8 +2,7 @@
 
 namespace WebmanTech\Enqueue\Job;
 
-use Interop\Queue\Message;
-use WebmanTech\Enqueue\Exceptions\ConsumeFailedException;
+use WebmanTech\Enqueue\Job\Traits\LogTrait;
 
 /**
  * 仅处理消息的任务，不能用于发送
@@ -12,6 +11,7 @@ use WebmanTech\Enqueue\Exceptions\ConsumeFailedException;
 abstract class BaseConsumerJob implements JobConsumerInterface
 {
     use JobConsumerTrait;
+    use LogTrait;
 
     final public function __construct()
     {

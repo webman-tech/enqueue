@@ -2,6 +2,8 @@
 
 namespace WebmanTech\Enqueue\Job;
 
+use WebmanTech\Enqueue\Job\Traits\LogTrait;
+
 /**
  * 基础任务，既用于发送，也用于消费
  */
@@ -9,6 +11,7 @@ abstract class BaseJob implements JobProducerInterface, JobConsumerInterface, Jo
 {
     use JobProducerTrait;
     use JobConsumerTrait;
+    use LogTrait;
 
     /**
      * 延迟时间，单位秒，为0时表示不延迟

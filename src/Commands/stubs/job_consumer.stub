@@ -13,7 +13,7 @@ class {{name}} extends BaseConsumerJob
     public function handle(Message $message)
     {
         $data = $message->getBody();
-        echo $data . PHP_EOL;
+        $this->log($data);
 
         return true;
     }
