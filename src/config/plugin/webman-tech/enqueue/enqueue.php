@@ -17,15 +17,19 @@ return [
     'definitions' => [
         'producer' => [
             // $name => ProducerDefinitionDTO
-            'default' => ['connection' => 'file'],
+            'default' => ['connection' => 'null'],
         ],
         'consumer' => [
             // $name => ConsumerDefinitionDTO
-            'default' => ['connection' => 'file', 'count' => 1],
+            'default' => ['connection' => 'null', 'count' => 1],
         ],
     ],
     'connections' => [
         // $name => ConnectionDTO
+        'null' => [
+            'connection' => fn() => new \Enqueue\Null\NullConnectionFactory(),
+            'destination' => fn(\Enqueue\Null\NullContext $context, array $config) => $context->createQueue($config['queue'] ?? 'queue'),
+        ],
         'file' => [
             'connection' => fn() => new \Enqueue\Fs\FsConnectionFactory([
                 'path' => run_path() . '/enqueue'
