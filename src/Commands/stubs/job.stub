@@ -1,0 +1,40 @@
+<?php
+
+namespace {{namespace}};
+
+use Interop\Queue\Message;
+use WebmanTech\Enqueue\Job\BaseJob;
+
+class {{name}} extends BaseJob
+{
+    private $param1;
+
+    public static function create($param1)
+    {
+        $self = new self();
+        $self->param1 = $param1;
+
+        return $self;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    protected function messageBody(): string
+    {
+        return json_encode([
+            'param1' => $this->param1,
+        ]);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function handle(Message $message)
+    {
+        $data = json_decode($message->getBody(), true);
+        echo $data['param1'] . PHP_EOL;
+
+        return true;
+    }
+}

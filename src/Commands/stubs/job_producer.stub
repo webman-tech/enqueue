@@ -1,0 +1,25 @@
+<?php
+
+namespace {{namespace}};
+
+use WebmanTech\Enqueue\Job\BaseProducerJob;
+
+class {{name}} extends BaseProducerJob
+{
+    private $param1;
+
+    public function __construct($param1)
+    {
+        $this->param1 = $param1;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    protected function messageBody(): string
+    {
+        return json_encode([
+            'param1' => $this->param1,
+        ]);
+    }
+}

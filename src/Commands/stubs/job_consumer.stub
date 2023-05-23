@@ -1,0 +1,20 @@
+<?php
+
+namespace {{namespace}};
+
+use Interop\Queue\Message;
+use WebmanTech\Enqueue\Job\BaseConsumerJob;
+
+class {{name}} extends BaseConsumerJob
+{
+    /**
+     * @inheritDoc
+     */
+    public function handle(Message $message)
+    {
+        $data = $message->getBody();
+        echo $data . PHP_EOL;
+
+        return true;
+    }
+}
