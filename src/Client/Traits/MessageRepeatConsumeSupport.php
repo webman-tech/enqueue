@@ -38,6 +38,9 @@ trait MessageRepeatConsumeSupport
     {
         if ($handler = $this->getMessageRepeatConsumerHandler()) {
             $key = $this->getMessageRepeatConsumerKey($message);
+            if ($key === null) {
+                return;
+            }
             $handler->markConsumeStatus($key, false);
         }
     }

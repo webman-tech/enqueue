@@ -2,19 +2,12 @@
 
 namespace WebmanTech\Enqueue\Events;
 
-use Interop\Queue\Message;
-use WebmanTech\Enqueue\Exceptions\ConsumeFailedException;
-
 class MessageConsumeRejectEvent
 {
-    public Message $message;
-    public bool $requeue;
-    public ?ConsumeFailedException $consumeFailedException;
+    public ConsumerConsumeAfterEvent $event;
 
-    public function __construct(Message $message, bool $requeue, ?ConsumeFailedException $consumeFailedException)
+    public function __construct(ConsumerConsumeAfterEvent $event)
     {
-        $this->message = $message;
-        $this->requeue = $requeue;
-        $this->consumeFailedException = $consumeFailedException;
+        $this->event = $event;
     }
 }

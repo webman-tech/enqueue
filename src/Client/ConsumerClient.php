@@ -121,18 +121,23 @@ class ConsumerClient extends BaseClient
         try {
             $this->events->dispatch(new ConsumerConsumeBeforeEvent($consumer, $message));
             $this->checkMessageRepeatAndMark($message);
+            $this->checkMessageJobSupportAndSolve($message);
 
-            $ack = $this->jobHandle($message);
+            $job = $this->messageToJob($message);
+            $afterEvent->setJob($job);
+
+            $ack = $this->jobHandle($job, $message);
             $afterEvent->setAck($ack);
         } catch (Throwable $e) {
             $failedException = new ConsumeFailedException($message, $e);
             $afterEvent->setException($failedException);
+            $job = null;
             $ack = null;
         }
 
         $this->events->dispatch($afterEvent);
-        if ($ack === null && $afterEvent->exception) {
-            $ack = $afterEvent->exception->getAck();
+        if ($ack === null && ($exception = $afterEvent->getException())) {
+            $ack = $exception->getAck();
         }
 
         switch ($ack) {
@@ -141,10 +146,10 @@ class ConsumerClient extends BaseClient
                 $consumer->acknowledge($message);
                 break;
             case MessageAckEnum::REJECT:
-                $this->reject($message, $consumer, false, $afterEvent->exception);
+                $this->reject($afterEvent, false);
                 break;
             case MessageAckEnum::REQUEUE:
-                $this->redeliver($message, $consumer, $afterEvent->exception);
+                $this->redeliver($afterEvent);
                 break;
             default:
                 throw new RuntimeException('ack value error: ' . $ack);
@@ -153,18 +158,12 @@ class ConsumerClient extends BaseClient
 
     /**
      * Job 处理流程
+     * @param JobConsumerInterface $job
      * @param Message $message
      * @return bool|string|null
      */
-    protected function jobHandle(Message $message)
+    protected function jobHandle(JobConsumerInterface $job, Message $message)
     {
-        $this->checkMessageJobSupportAndSolve($message);
-
-        $job = $this->tryTransferToJob($message);
-        if (!$job instanceof JobConsumerInterface) {
-            throw new NotSupportMessageException($message);
-        }
-
         $this->setJobMaxMemoryUse($job->getMaxMemoryUse() ?? $this->config['max_memory_use']);
         $this->setJobMaxExecTime($job->getMaxExecTime() ?? $this->config['max_exec_time']);
 
@@ -189,49 +188,44 @@ class ConsumerClient extends BaseClient
 
     /**
      * 消息处理失败
-     * @param Message $message
-     * @param Consumer $consumer
+     * @param ConsumerConsumeAfterEvent $event
      * @param bool $requeue
-     * @param ConsumeFailedException|null $consumeFailedException
      * @return void
      */
-    protected function reject(Message $message, Consumer $consumer, bool $requeue, ?ConsumeFailedException $consumeFailedException)
+    protected function reject(ConsumerConsumeAfterEvent $event, bool $requeue)
     {
-        $job = $this->tryTransferToJob($message);
-        if ($job instanceof JobConsumeFailedInterface) {
+        if (($job = $event->getJob()) !== null) {
             try {
-                $job->handleConsumeFailed($message, $requeue, $consumeFailedException);
+                $job->handleConsumeFailed($event);
             } catch (Throwable $e) {
                 // 忽略异常
             }
         }
 
-        $this->events->dispatch(new MessageConsumeRejectEvent($message, $requeue, $consumeFailedException));
-        $consumer->reject($message, $requeue);
+        $this->events->dispatch(new MessageConsumeRejectEvent($event));
+        $event->getConsumer()->reject($event->getMessage(), $requeue);
     }
 
     /**
      * 重试
-     * @param Message $message
-     * @param Consumer $consumer
-     * @param ConsumeFailedException|null $consumeFailedException
+     * @param ConsumerConsumeAfterEvent $event
      * @return void
      */
-    protected function redeliver(Message $message, Consumer $consumer, ?ConsumeFailedException $consumeFailedException)
+    protected function redeliver(ConsumerConsumeAfterEvent $event)
     {
         $requeue = false;
 
-        $job = $this->tryTransferToJob($message);
-        if ($job instanceof JobConsumeRetryInterface) {
+        $message = $event->getMessage();
+        if (($job = $event->getJob()) !== null) {
             // 设置默认的重试次数
             $retryCount = $message->getProperty(MessagePropertyEnum::RETRY);
             if ($retryCount === null && $this->config['default_retry'] > 0) {
                 $message->setProperty(MessagePropertyEnum::RETRY, $this->config['default_retry']);
             }
             // 允许重试
-            if ($job->shouldRetry($message, $consumeFailedException)) {
+            if ($job->shouldRetry($message, $event->getException())) {
                 // 设置重试延迟
-                $delay = $job->retryDelay($message, $consumeFailedException) * 1000;
+                $delay = $job->retryDelay($message, $event->getException()) * 1000;
                 if (method_exists($message, 'setDeliveryDelay')) {
                     $message->setDeliveryDelay($delay);
                 } else {
@@ -249,19 +243,22 @@ class ConsumerClient extends BaseClient
             $this->markMessageCanReconsume($message);
         }
 
-        $this->reject($message, $consumer, $requeue, $consumeFailedException);
+        $this->reject($event, $requeue);
     }
 
     /**
      * 从 message 创建出 job
      * @param Message $message
-     * @return mixed|null|JobConsumerInterface
+     * @return JobConsumerInterface
      */
-    protected function tryTransferToJob(Message $message)
+    protected function messageToJob(Message $message): JobConsumerInterface
     {
         $job = null;
         if ($jobClass = $message->getProperty(MessagePropertyEnum::JOB)) {
             $job = new $jobClass();
+        }
+        if (!$job instanceof JobConsumerInterface) {
+            throw new NotSupportMessageException($message);
         }
         return $job;
     }

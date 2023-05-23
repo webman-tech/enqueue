@@ -4,6 +4,7 @@ namespace WebmanTech\Enqueue\Job;
 
 use Interop\Queue\Message;
 use WebmanTech\Enqueue\Enums\MessagePropertyEnum;
+use WebmanTech\Enqueue\Events\ConsumerConsumeAfterEvent;
 use WebmanTech\Enqueue\Exceptions\ConsumeFailedException;
 
 trait JobConsumerTrait
@@ -93,7 +94,7 @@ trait JobConsumerTrait
     /**
      * @inheritDoc
      */
-    public function handleConsumeFailed(Message $message, bool $requeue, ?ConsumeFailedException $consumeFailedException): void
+    public function handleConsumeFailed(ConsumerConsumeAfterEvent $event): void
     {
     }
 }
