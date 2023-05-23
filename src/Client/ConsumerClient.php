@@ -5,14 +5,12 @@ namespace WebmanTech\Enqueue\Client;
 use Interop\Queue\Consumer;
 use Interop\Queue\Message;
 use Interop\Queue\SubscriptionConsumer;
-use InvalidArgumentException;
 use RuntimeException;
-use support\Container;
 use Throwable;
-use WebmanTech\Enqueue\Client\ConsumerClient\NotSupportMessageDefaultSolver;
-use WebmanTech\Enqueue\Client\ConsumerClient\NotSupportMessageSolverInterface;
 use WebmanTech\Enqueue\Client\Traits\ConsumerJobMaxExecTimeSupport;
 use WebmanTech\Enqueue\Client\Traits\ConsumerJobMaxMemoryUseSupport;
+use WebmanTech\Enqueue\Client\Traits\MessageNotSupportSupport;
+use WebmanTech\Enqueue\Client\Traits\MessageRepeatConsumeSupport;
 use WebmanTech\Enqueue\Enums\MessageAckEnum;
 use WebmanTech\Enqueue\Enums\MessagePropertyEnum;
 use WebmanTech\Enqueue\Events\ConsumerConsumeAfterEvent;
@@ -29,12 +27,28 @@ class ConsumerClient extends BaseClient
 {
     use ConsumerJobMaxMemoryUseSupport;
     use ConsumerJobMaxExecTimeSupport;
+    use MessageNotSupportSupport;
+    use MessageRepeatConsumeSupport;
 
     protected array $config = [
         'default_retry' => 0, // 默认重试次数
         'max_exec_time' => -1, // 最大执行时长，单位秒，<=0 为不限制
         'max_memory_use' => -1, // 最大内存使用量，单位 M，-1 表示不限制，0 为不限制
-        'not_support_message_solver' => NotSupportMessageDefaultSolver::class, // 不支持消息处理器
+        /**
+         * 不支持消息处理器
+         * @see MessageNotSupportSupport::getNotSupportMessageSolveHandler()
+         */
+        'not_support_message_solver' => null,
+        /**
+         * 消息重复消费的处理器
+         * @see MessageRepeatConsumeSupport::getMessageRepeatConsumerHandler()
+         */
+        'message_repeat_consume_handler' => null,
+        /**
+         * 消息重复消费时用于界定的 key
+         * @see MessageRepeatConsumeSupport::getMessageRepeatConsumerKey()
+         */
+        'message_repeat_consume_key' => null,
     ];
 
     /**
@@ -106,6 +120,7 @@ class ConsumerClient extends BaseClient
         $afterEvent = new ConsumerConsumeAfterEvent($consumer, $message);
         try {
             $this->events->dispatch(new ConsumerConsumeBeforeEvent($consumer, $message));
+            $this->checkMessageRepeatAndMark($message);
 
             $ack = $this->jobHandle($message);
             $afterEvent->setAck($ack);
@@ -143,16 +158,7 @@ class ConsumerClient extends BaseClient
      */
     protected function jobHandle(Message $message)
     {
-        if (!$message->getProperty(MessagePropertyEnum::JOB)) {
-            $solver = Container::get($this->config['not_support_message_solver']);
-            if (!$solver instanceof NotSupportMessageSolverInterface) {
-                throw new InvalidArgumentException('not_support_message_solver must be a instance of ' . NotSupportMessageSolverInterface::class);
-            }
-            $message = $solver->solve($message);
-            if (!$message->getProperty(MessagePropertyEnum::JOB)) {
-                throw new RuntimeException('not_support_message_solver solve must return a message with job property');
-            }
-        }
+        $this->checkMessageJobSupportAndSolve($message);
 
         $job = $this->tryTransferToJob($message);
         if (!$job instanceof JobConsumerInterface) {
@@ -237,6 +243,10 @@ class ConsumerClient extends BaseClient
 
                 $requeue = true;
             }
+        }
+
+        if ($requeue) {
+            $this->markMessageCanReconsume($message);
         }
 
         $this->reject($message, $consumer, $requeue, $consumeFailedException);
